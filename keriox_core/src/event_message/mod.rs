@@ -359,7 +359,7 @@ mod tests {
             .with_keys(keys)
             .with_threshold(&SignatureThreshold::Simple(1))
             .with_next_keys(next_pks)
-            .with_next_threshold(&SignatureThreshold::single_weighted(vec![
+            .with_next_threshold(&SignatureThreshold::from(vec![
                 (1, 2),
                 (1, 2),
                 (1, 3),
@@ -400,13 +400,9 @@ mod tests {
             .with_prefix(&id_prefix)
             .with_previous_event(&icp_digest)
             .with_keys(current_public_keys.clone())
-            .with_threshold(&SignatureThreshold::single_weighted(vec![
-                (1, 2),
-                (1, 2),
-                (1, 3),
-            ]))
+            .with_threshold(&SignatureThreshold::from(vec![(1, 2), (1, 2), (1, 3)]))
             .with_next_keys(next_public_keys)
-            .with_next_threshold(&SignatureThreshold::single_weighted(vec![
+            .with_next_threshold(&SignatureThreshold::from(vec![
                 (1, 2),
                 (1, 2),
                 (1, 3),
@@ -445,7 +441,7 @@ mod tests {
             .build()?;
 
         let res = rotation.apply_to(state);
-        assert!(matches!(res.unwrap_err(), Error::NotEnoughSigsError));
+        assert!(matches!(res.unwrap_err(), Error::SemanticError(_)));
 
         Ok(())
     }

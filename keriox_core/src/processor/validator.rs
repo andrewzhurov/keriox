@@ -87,10 +87,12 @@ impl EventValidator {
                 // In case of rotation event, check if previous next threshold is satisfied
                 if let EventData::Rot(rot) = signed_event.event_message.data.get_event_data() {
                     let new_public_keys = rot.key_config.public_keys;
-                    state.current.next_keys_data.check_threshold(
+                    if !state.current.next_keys_data.check_threshold(
                         &new_public_keys,
                         signed_event.signatures.iter().map(|sig| &sig.index),
-                    )?;
+                    ) {
+                        return Err(Error::NotEnoughSigsError);
+                    }
                 }
                 new_state
             }
@@ -125,7 +127,7 @@ impl EventValidator {
                     Nontransferable::Indexed(signatures) => indexed.append(&mut signatures.clone()),
                 });
             };
-            if new_state.witness_config.enough_receipts(couples, indexed)? {
+            if new_state.witness_config.enough_receipts(couples, indexed) {
                 Ok(Some(new_state))
             } else {
                 Err(Error::NotEnoughReceiptsError)

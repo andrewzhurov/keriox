@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use crate::{
     error::Error,
     event::{
@@ -35,51 +33,21 @@ pub struct WitnessConfig {
 }
 
 impl WitnessConfig {
-    pub fn enough_receipts<I, R>(
-        &self,
-        receipts_couplets: I,
-        indexed_receipts: R,
-    ) -> Result<bool, Error>
+    pub fn enough_receipts<I, R>(&self, receipts_couplets: I, indexed_receipts: R) -> bool
     where
         I: IntoIterator<Item = (BasicPrefix, SelfSigningPrefix)>,
         R: IntoIterator<Item = IndexedSignature>,
     {
-        match self.tally.clone() {
-            SignatureThreshold::Simple(t) => {
-                let mut unique = HashSet::new();
-                // save indexed signer's identifiers
-                indexed_receipts.into_iter().for_each(|w| {
-                    unique.insert(
-                        self.witnesses
-                            .get(w.index.current() as usize)
-                            .unwrap()
-                            .clone(),
-                    );
-                });
-                receipts_couplets
-                    .into_iter()
-                    .filter(|(witness, _sig)| self.witnesses.contains(witness))
-                    .for_each(|(witness_id, _witness_sig)| {
-                        unique.insert(witness_id);
-                    });
-                Ok(unique.len() >= t as usize)
-            }
-            SignatureThreshold::Weighted(t) => {
-                let indexes = receipts_couplets
-                    .into_iter()
-                    .filter_map(|(id, _signature)| self.witnesses.iter().position(|wit| wit == &id))
-                    .chain(
-                        indexed_receipts
-                            .into_iter()
-                            .map(|att| att.index.current() as usize),
-                    )
-                    .collect::<Vec<_>>();
-                match t.enough_signatures(&indexes) {
-                    Ok(_) => Ok(true),
-                    Err(e) => Err(Error::KeyConfigError(e)),
-                }
-            }
-        }
+        let couplets_iter = receipts_couplets
+            .into_iter()
+            .filter_map(|(id, _signature)| self.witnesses.iter().position(|wit| wit == &id));
+        let indexed_iter = indexed_receipts
+            .into_iter()
+            .filter(|w| self.witnesses.get(w.index.current() as usize).is_some())
+            .map(|att| att.index.current() as usize);
+        let indexes_iter = couplets_iter.chain(indexed_iter);
+
+        self.tally.enough_signatures(indexes_iter)
     }
 }
 /// Identifier State

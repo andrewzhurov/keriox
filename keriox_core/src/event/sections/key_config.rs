@@ -17,20 +17,15 @@ pub struct NextKeysData {
 impl NextKeysData {
     /// Checks if next KeyConfig contains enough public keys to fulfill current
     /// next threshold.
-    pub fn verify_next(&self, next: &KeyConfig) -> Result<bool, SignatureError> {
-        let indexes: Vec<_> = next
-            .public_keys
-            .iter()
-            .filter_map(|key| {
-                self.next_key_hashes
-                    .iter()
-                    .position(|dig| dig.verify_binding(key.to_str().as_bytes()))
-            })
-            .collect();
+    pub fn verify_next(&self, next: &KeyConfig) -> bool {
+        let indexes_iter = next.public_keys.iter().filter_map(|key| {
+            self.next_key_hashes
+                .iter()
+                .position(|dig| dig.verify_binding(key.to_str().as_bytes()))
+        });
 
         // check previous next threshold
-        self.threshold.enough_signatures(&indexes)?;
-        Ok(true)
+        self.threshold.enough_signatures(indexes_iter)
     }
 
     /// Checks if public keys corresponding to signatures match keys committed in
@@ -39,14 +34,12 @@ impl NextKeysData {
         &self,
         public_keys: &[BasicPrefix],
         indexes: impl IntoIterator<Item = &'a Index>,
-    ) -> Result<(), SignatureError> {
+    ) -> bool {
         // Get indexes of keys in previous next key list.
         let indexes_in_last_prev = self.matching_previous_indexes(public_keys, indexes);
 
         // Check previous next threshold
-        self.threshold.enough_signatures(&indexes_in_last_prev)?;
-
-        Ok(())
+        self.threshold.enough_signatures(indexes_in_last_prev)
     }
 
     /// Checks if hashes of public keys match public keys of provided indexes.
@@ -149,23 +142,21 @@ impl KeyConfig {
         sigs.len() > self.public_keys.len() {
             Err(SignatureError::TooManySignatures.into())
 
-        // ensure there's enough sigs
+            // ensure there's enough sigs
+        } else if !self
+            .threshold
+            .enough_signatures(sigs.iter().map(|sig| sig.index.current() as usize))
+        {
+            Err(SignatureError::NotEnoughSigsError)
         } else {
-            self.threshold.enough_signatures(
-                &sigs
-                    .iter()
-                    .map(|sig| sig.index.current() as usize)
-                    .collect::<Vec<_>>(),
-            )?;
-
             sigs.iter()
-                .fold(Ok(true), |acc: Result<bool, SignatureError>, sig| {
-                    let verification_result: bool = self
-                        .public_keys
+                .filter_map(|sig| {
+                    self.public_keys
                         .get(sig.index.current() as usize)
-                        .ok_or_else(|| SignatureError::from(SignatureError::MissingIndex))
-                        .and_then(|key: &BasicPrefix| Ok(key.verify(message, &sig.signature)?))?;
-                    Ok(acc? && verification_result)
+                        .map(|key| (key, sig))
+                })
+                .try_fold(true, |acc, (key, sig)| {
+                    Ok(acc && key.verify(message, &sig.signature)?)
                 })
         }
     }
@@ -174,7 +165,7 @@ impl KeyConfig {
     ///
     /// Verifies that the given next KeyConfig matches that which is committed
     /// to in next_keys_data of this KeyConfig
-    pub fn verify_next(&self, next: &KeyConfig) -> Result<bool, SignatureError> {
+    pub fn verify_next(&self, next: &KeyConfig) -> bool {
         self.next_keys_data.verify_next(next)
     }
 
@@ -225,7 +216,7 @@ mod test {
         // test data taken from keripy
         // (keripy/tests/core/test_weighted_threshold.py::test_weighted)
         // Set weighted threshold to [1/2, 1/2, 1/2]
-        let sith = SignatureThreshold::multi_weighted(vec![vec![(1, 2), (1, 2), (1, 2)]]);
+        let sith = SignatureThreshold::from(vec![vec![(1, 2), (1, 2), (1, 2)]]);
         let next_keys: Vec<BasicPrefix> = [
             "DHqJ2DNmypwMKelWXLgl3V-9pDRcOenM5Wf03O1xx1Ri",
             "DEIISiMvtnaPTpMHkoGs4d0JdbwjreW53OUBfMedLUaF",
@@ -236,7 +227,7 @@ mod test {
         .collect();
         let nxt = nxt_commitment(sith, &next_keys, &HashFunctionCode::Blake3_256.into());
 
-        let threshold = SignatureThreshold::multi_weighted(vec![vec![(1, 2), (1, 2), (1, 2)]]);
+        let threshold = SignatureThreshold::from(vec![vec![(1, 2), (1, 2), (1, 2)]]);
         let next_key_hashes: Vec<SelfAddressingIdentifier> = [
             "EFQZkN8MMEtZzaS-Tq1EEbH886vsf5SzwicSn_ywbzTy",
             "ENOQnUj8GNr1ICJ1P4qmC3-aHTrpZqKVpZhvHCBVWE1p",
@@ -275,10 +266,10 @@ mod test {
                 )
             })
             .unzip();
-        let current_threshold = SignatureThreshold::single_weighted(vec![(1, 4), (1, 2), (1, 2)]);
+        let current_threshold = SignatureThreshold::from(vec![(1, 4), (1, 2), (1, 2)]);
 
         let next_key_hash = {
-            let next_threshold = SignatureThreshold::single_weighted(vec![(1, 2), (1, 2)]);
+            let next_threshold = SignatureThreshold::from(vec![(1, 2), (1, 2)]);
             let next_keys: Vec<BasicPrefix> = [1, 2]
                 .iter()
                 .map(|_| {
@@ -404,7 +395,7 @@ mod test {
             .map(|pk| hash_function.derive(pk.to_str().as_bytes()))
             .collect();
 
-        let threshold = SignatureThreshold::single_weighted(vec![(1, 4), (1, 2), (1, 4), (1, 2)]);
+        let threshold = SignatureThreshold::from(vec![(1, 4), (1, 2), (1, 4), (1, 2)]);
         let public_keys = sample_public_keys[..5].to_vec();
         let initial_digests: Vec<_> = sample_digests[..5].to_vec();
 
