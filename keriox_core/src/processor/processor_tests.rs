@@ -500,7 +500,7 @@ pub fn test_partial_rotation_weighted_threshold() -> Result<(), Error> {
         .with_keys(keys)
         .with_threshold(&SignatureThreshold::Simple(1))
         .with_next_keys(next_pks)
-        .with_next_threshold(&SignatureThreshold::single_weighted(vec![
+        .with_next_threshold(&SignatureThreshold::from(vec![
             (1, 2),
             (1, 2),
             (1, 3),
@@ -550,13 +550,9 @@ pub fn test_partial_rotation_weighted_threshold() -> Result<(), Error> {
         .with_prefix(&id_prefix)
         .with_previous_event(&icp_digest)
         .with_keys(current_public_keys.clone())
-        .with_threshold(&SignatureThreshold::single_weighted(vec![
-            (1, 2),
-            (1, 2),
-            (1, 3),
-        ]))
+        .with_threshold(&SignatureThreshold::from(vec![(1, 2), (1, 2), (1, 3)]))
         .with_next_keys(next_public_keys)
-        .with_next_threshold(&SignatureThreshold::single_weighted(vec![
+        .with_next_threshold(&SignatureThreshold::from(vec![
             (1, 2),
             (1, 2),
             (1, 3),
@@ -667,7 +663,7 @@ pub fn test_reserve_rotation() -> Result<(), Error> {
     // build inception event
     let icp = EventMsgBuilder::new(EventTypeTag::Icp)
         .with_keys(current_pks)
-        .with_threshold(&SignatureThreshold::single_weighted(vec![
+        .with_threshold(&SignatureThreshold::from(vec![
             (1, 2),
             (1, 2),
             (1, 2),
@@ -675,7 +671,7 @@ pub fn test_reserve_rotation() -> Result<(), Error> {
             (1, 4),
         ]))
         .with_next_keys(next_pks)
-        .with_next_threshold(&SignatureThreshold::single_weighted(vec![
+        .with_next_threshold(&SignatureThreshold::from(vec![
             (1, 2),
             (1, 2),
             (1, 2),
@@ -724,13 +720,9 @@ pub fn test_reserve_rotation() -> Result<(), Error> {
         .with_prefix(&id_prefix)
         .with_previous_event(&icp_digest)
         .with_keys(current_public_keys.clone())
-        .with_threshold(&SignatureThreshold::single_weighted(vec![
-            (1, 2),
-            (1, 2),
-            (1, 2),
-        ]))
+        .with_threshold(&SignatureThreshold::from(vec![(1, 2), (1, 2), (1, 2)]))
         .with_next_keys(next_public_keys)
-        .with_next_threshold(&SignatureThreshold::single_weighted(vec![
+        .with_next_threshold(&SignatureThreshold::from(vec![
             (1, 2),
             (1, 2),
             (1, 2),
@@ -779,13 +771,9 @@ pub fn test_reserve_rotation() -> Result<(), Error> {
         .with_prefix(&id_prefix)
         .with_previous_event(&rot_digest)
         .with_keys(current_public_keys.clone())
-        .with_threshold(&SignatureThreshold::single_weighted(vec![
-            (1, 2),
-            (1, 2),
-            (1, 2),
-        ]))
+        .with_threshold(&SignatureThreshold::from(vec![(1, 2), (1, 2), (1, 2)]))
         .with_next_keys(next_public_keys)
-        .with_next_threshold(&SignatureThreshold::single_weighted(vec![
+        .with_next_threshold(&SignatureThreshold::from(vec![
             (1, 2),
             (1, 2),
             (1, 2),
@@ -850,17 +838,9 @@ pub fn test_custorial_rotation() -> Result<(), Error> {
     // build inception event
     let icp = EventMsgBuilder::new(EventTypeTag::Icp)
         .with_keys(current_pks)
-        .with_threshold(&SignatureThreshold::single_weighted(vec![
-            (1, 2),
-            (1, 2),
-            (1, 2),
-        ]))
+        .with_threshold(&SignatureThreshold::from(vec![(1, 2), (1, 2), (1, 2)]))
         .with_next_keys(next_pks)
-        .with_next_threshold(&SignatureThreshold::single_weighted(vec![
-            (1, 2),
-            (1, 2),
-            (1, 2),
-        ]))
+        .with_next_threshold(&SignatureThreshold::from(vec![(1, 2), (1, 2), (1, 2)]))
         .build()
         .unwrap();
 
@@ -905,7 +885,7 @@ pub fn test_custorial_rotation() -> Result<(), Error> {
         .with_prefix(&id_prefix)
         .with_previous_event(&icp_digest)
         .with_keys(current_public_keys.clone())
-        .with_threshold(&SignatureThreshold::single_weighted(vec![
+        .with_threshold(&SignatureThreshold::from(vec![
             (0, 1),
             (0, 1),
             (0, 1),
@@ -914,11 +894,7 @@ pub fn test_custorial_rotation() -> Result<(), Error> {
             (1, 2),
         ]))
         .with_next_keys(next_public_keys)
-        .with_next_threshold(&SignatureThreshold::single_weighted(vec![
-            (1, 2),
-            (1, 2),
-            (1, 2),
-        ]))
+        .with_next_threshold(&SignatureThreshold::from(vec![(1, 2), (1, 2), (1, 2)]))
         .build()?;
 
     let owner_signatures = owner_signers

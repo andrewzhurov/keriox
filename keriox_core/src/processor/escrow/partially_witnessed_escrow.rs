@@ -197,7 +197,7 @@ impl PartiallyWitnessedEscrow {
 
         new_state
             .witness_config
-            .enough_receipts(couplets, indexed)?
+            .enough_receipts(couplets, indexed)
             .then_some(())
             .ok_or(Error::NotEnoughReceiptsError)?;
         Ok(())
