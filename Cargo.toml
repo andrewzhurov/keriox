@@ -19,6 +19,9 @@ authors = [
 edition = "2021"
 license = "EUPL-1.2"
 
+[workspace.dependencies]
+itertools = "0.11.0"
+
 [workspace.metadata.release]
 
 #pre-release-hook = ["git", "cliff", "-o", "CHANGELOG.md", "--tag", "{{version}}" ]
