@@ -69,3 +69,6 @@ pre-release-hook = ["git", "cliff", "--tag", "{{version}}", "-r", "../", "--outp
 [[bench]]
 name = "bench"
 harness = false
+
+[lints]
+workspace = true
