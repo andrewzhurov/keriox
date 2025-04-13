@@ -13,6 +13,7 @@ pub trait KeyManager {
 }
 
 pub struct CryptoBox {
+    pub pub_key_log: Vec<PublicKey>,
     signer: Signer,
     next_priv_key: PrivateKey,
     pub next_pub_key: PublicKey,
@@ -38,6 +39,7 @@ impl KeyManager for CryptoBox {
             priv_key: self.next_priv_key.clone(),
             pub_key: self.next_pub_key.clone(),
         };
+        self.pub_key_log.push(new_signer.public_key());
         self.signer = new_signer;
         self.next_priv_key = next_priv_key;
         self.next_pub_key = next_pub_key;
@@ -49,7 +51,9 @@ impl CryptoBox {
     pub fn new() -> Result<Self, Error> {
         let signer = Signer::new();
         let (next_pub_key, next_priv_key) = generate_key_pair()?;
+        let pub_key_log = vec![signer.public_key()];
         Ok(CryptoBox {
+            pub_key_log,
             signer,
             next_pub_key,
             next_priv_key,
@@ -98,6 +102,14 @@ impl Signer {
 
     pub fn public_key(&self) -> PublicKey {
         self.pub_key.clone()
+    }
+
+    pub fn pub_key(&self) -> Vec<u8> {
+        self.pub_key.key()
+    }
+
+    pub fn priv_key(&self) -> Vec<u8> {
+        self.priv_key.key()
     }
 }
 
