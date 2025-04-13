@@ -11,6 +11,10 @@ use serde::{
 use serde_hex::{Compact, SerHex};
 use std::ops::ControlFlow;
 
+pub mod fraction {
+    pub use fraction::*;
+}
+
 #[derive(Debug, thiserror::Error, Serialize, Deserialize)]
 pub enum ThresholdError {
     #[error("Error parsing numerical value")]
@@ -27,7 +31,7 @@ impl From<core::num::ParseIntError> for ThresholdError {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ThresholdFraction {
-    fraction: Fraction,
+    pub fraction: Fraction,
 }
 
 impl ThresholdFraction {
