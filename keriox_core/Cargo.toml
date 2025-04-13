@@ -63,3 +63,6 @@ publish = false
 tag=true
 tag-name="v{{version}}"
 pre-release-hook = ["git", "cliff", "--tag", "{{version}}", "-r", "../", "--output", "../CHANGELOG.md" ]
+
+[lints]
+workspace = true
