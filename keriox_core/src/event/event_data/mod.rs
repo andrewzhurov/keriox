@@ -28,6 +28,19 @@ pub enum EventData {
     Drt(RotationEvent),
 }
 
+use crate::event::sections::KeyConfig;
+impl EventData {
+    pub fn get_key_config(&self) -> Option<&KeyConfig> {
+        match self {
+            Self::Dip(dip) => Some(&dip.inception_data.key_config),
+            Self::Icp(icp) => Some(&icp.key_config),
+            Self::Rot(rot) => Some(&rot.key_config),
+            Self::Drt(drt) => Some(&drt.key_config),
+            _ => None,
+        }
+    }
+}
+
 impl EventSemantics for EventData {
     fn apply_to(&self, state: IdentifierState) -> Result<IdentifierState, Error> {
         match self {

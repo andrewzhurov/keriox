@@ -25,6 +25,7 @@ pub struct KeyEvent {
     pub event_data: EventData,
 }
 
+use crate::event::sections::KeyConfig;
 impl KeyEvent {
     pub fn new(prefix: IdentifierPrefix, sn: u64, event_data: EventData) -> Self {
         KeyEvent {
@@ -48,6 +49,10 @@ impl KeyEvent {
             }
             _ => Ok(KeriEvent::new(format, derivation, self)),
         }
+    }
+
+    pub fn get_key_config(&self) -> Option<&KeyConfig> {
+        self.event_data.get_key_config()
     }
 }
 
