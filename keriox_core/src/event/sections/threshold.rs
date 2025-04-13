@@ -11,6 +11,10 @@ use serde::{
 use serde_hex::{Compact, SerHex};
 use std::ops::ControlFlow;
 
+pub mod fraction {
+    pub use fraction::*;
+}
+
 #[derive(Debug, thiserror::Error, Serialize, Deserialize)]
 pub enum ThresholdError {
     #[error("Error parsing numerical value")]
@@ -29,7 +33,7 @@ impl From<core::num::ParseIntError> for ThresholdError {
 #[rkyv(derive(Debug))]
 pub struct ThresholdFraction {
     #[rkyv(with = rkyv_serialization::FractionDef)]
-    fraction: Fraction,
+    pub fraction: Fraction,
 }
 
 impl ThresholdFraction {
