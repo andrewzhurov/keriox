@@ -33,6 +33,15 @@ pub struct TypedEvent<T: Serialize + Clone, D: Serialize + Clone + Typeable<Type
     pub data: D,
 }
 
+// TODO put in SAD macro
+use crate::event::KeyEvent;
+use std::hash::{Hash, Hasher};
+impl Hash for KeriEvent<KeyEvent> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write(&self.digest.as_ref().unwrap().digest);
+    }
+}
+
 impl<T: Serialize + Clone, D: Serialize + Typeable<TypeTag = T> + Clone> TypedEvent<T, D> {
     pub fn digest(&self) -> Result<SelfAddressingIdentifier, Error> {
         self.digest.to_owned().ok_or(Error::EventDigestError)
