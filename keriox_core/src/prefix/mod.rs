@@ -64,6 +64,12 @@ impl FromStr for IdentifierPrefix {
     }
 }
 
+impl From<SelfAddressingIdentifier> for IdentifierPrefix {
+    fn from(said: SelfAddressingIdentifier) -> Self {
+        Self::self_addressing(said)
+    }
+}
+
 impl CesrPrimitive for IdentifierPrefix {
     fn derivative(&self) -> Vec<u8> {
         match self {
