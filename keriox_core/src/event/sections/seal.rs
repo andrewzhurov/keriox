@@ -46,6 +46,21 @@ impl DigestSeal {
     }
 }
 
+impl From<SelfAddressingIdentifier> for DigestSeal {
+    fn from(said: SelfAddressingIdentifier) -> Self {
+        DigestSeal::new(said)
+    }
+}
+
+impl<I> From<I> for Seal
+where
+    I: Into<DigestSeal>,
+{
+    fn from(subj: I) -> Self {
+        Seal::Digest(subj.into())
+    }
+}
+
 #[derive(
     Serialize,
     Deserialize,
@@ -162,7 +177,6 @@ pub struct DelegatingEventSeal {
     rkyv::Deserialize,
 )]
 #[rkyv(derive(Debug))]
-
 pub struct SourceSeal {
     pub sn: u64,
     pub digest: SaidValue,
@@ -176,6 +190,9 @@ impl SourceSeal {
         }
     }
 }
+
+#[cfg(test)]
+use said::derivation::HashFunction;
 
 #[test]
 fn test_seal_deserialization() {
@@ -196,4 +213,7 @@ fn test_seal_deserialization() {
     let seal: Seal = serde_json::from_str(seal_str).unwrap();
     assert!(matches!(seal, Seal::Digest(_)));
     assert_eq!(serde_json::to_string(&seal).unwrap(), seal_str);
+
+    let said = SelfAddressingIdentifier::new(HashFunction::default(), vec![0; 32]);
+    let _seal = Seal::from(said);
 }
