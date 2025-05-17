@@ -1,5 +1,5 @@
 use crate::prefix::IdentifierPrefix;
-use said::SelfAddressingIdentifier;
+use said::{derivation::HashFunction, SelfAddressingIdentifier};
 use serde::{Deserialize, Serialize};
 use serde_hex::{Compact, SerHex};
 
@@ -16,6 +16,21 @@ pub enum Seal {
 pub struct DigestSeal {
     #[serde(rename = "d")]
     pub dig: SelfAddressingIdentifier,
+}
+
+impl From<SelfAddressingIdentifier> for DigestSeal {
+    fn from(said: SelfAddressingIdentifier) -> Self {
+        DigestSeal { dig: said }
+    }
+}
+
+impl<I> From<I> for Seal
+where
+    I: Into<DigestSeal>,
+{
+    fn from(subj: I) -> Self {
+        Seal::Digest(subj.into())
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -91,4 +106,7 @@ fn test_seal_deserialization() {
     let seal: Seal = serde_json::from_str(seal_str).unwrap();
     assert!(matches!(seal, Seal::Digest(_)));
     assert_eq!(serde_json::to_string(&seal).unwrap(), seal_str);
+
+    let said = SelfAddressingIdentifier::new(HashFunction::default(), vec![0; 32]);
+    let seal = Seal::from(said);
 }
