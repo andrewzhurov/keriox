@@ -4,6 +4,8 @@ pub mod mailbox;
 pub(crate) mod tables;
 pub(crate) mod timestamped;
 
+use crate::actor::prelude::{HashFunctionCode, SerializationFormats};
+use said::sad::SAD;
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
@@ -31,6 +33,47 @@ use crate::{
 
 use self::timestamped::TimestampedSignedEventMessage;
 
+use said::SelfAddressingIdentifier;
+pub type SAID = SelfAddressingIdentifier;
+
+#[derive(Hash, Clone, Debug, Serialize, Deserialize, SAD)]
+pub struct Membership {
+    pub member_aids: Vec<SAID>,     // aligned with threshold weights
+    pub member_aids_kes: Vec<SAID>, // aligned with member_aids
+
+    #[said]
+    pub digest: Option<SAID>,
+}
+
+#[derive(Hash, Clone, Debug, Serialize, Deserialize)]
+pub enum Mailbox {
+    DIDComm { did_peer: String },
+}
+
+#[derive(Hash, Clone, Debug, Serialize, Deserialize)]
+pub enum Control {
+    Device(DeviceControl),
+    Group(GroupControl),
+}
+
+#[derive(Hash, Clone, Debug, Serialize, Deserialize, SAD)]
+pub struct DeviceControl {
+    pub mailbox: Mailbox,
+
+    #[said]
+    pub digest: Option<SAID>,
+}
+
+#[derive(Hash, Clone, Debug, Serialize, Deserialize, SAD)]
+pub struct GroupControl {
+    pub device_aids: Vec<SAID>,     // aligned with threshold
+    pub device_aids_kes: Vec<SAID>, // aligned with device_aids, did_peer inside ke
+    pub mailboxes: Vec<Mailbox>, // aligned with device_aids; Could be in device KEL, but let's keep it simple
+
+    #[said]
+    pub digest: Option<SAID>,
+}
+
 pub struct SledEventDatabase {
     db: Arc<sled::Db>,
     // "iids" tree
@@ -55,6 +98,9 @@ pub struct SledEventDatabase {
 
     #[cfg(feature = "mailbox")]
     mailbox: MailboxData,
+
+    membership: SledEventTree<Membership>,
+    control: SledEventTree<Control>,
 }
 
 // TODO: remove all the `.ok()`s
@@ -83,8 +129,41 @@ impl SledEventDatabase {
 
             #[cfg(feature = "query")]
             escrowed_replys: SledEventTreeVec::new(db.open_tree(b"knes")?),
+
+            membership: SledEventTree::new(db.open_tree(b"memb")?),
+            control: SledEventTree::new(db.open_tree(b"ctrl")?),
             db,
         })
+    }
+
+    pub fn add_membership(
+        &self,
+        id: &IdentifierPrefix,
+        membership: &Membership,
+    ) -> Result<(), DbError> {
+        self.membership
+            .insert(self.identifiers.designated_key(id)?, membership)?;
+        self.db.flush()?;
+        Ok(())
+    }
+
+    pub fn get_membership(&self, id: &IdentifierPrefix) -> Option<Membership> {
+        self.membership
+            .get(self.identifiers.designated_key(id).ok()?)
+            .ok()?
+    }
+
+    pub fn add_control(&self, id: &IdentifierPrefix, control: &Control) -> Result<(), DbError> {
+        self.control
+            .insert(self.identifiers.designated_key(id)?, control)?;
+        self.db.flush()?;
+        Ok(())
+    }
+
+    pub fn get_control(&self, id: &IdentifierPrefix) -> Option<Control> {
+        self.control
+            .get(self.identifiers.designated_key(id).ok()?)
+            .ok()?
     }
 
     pub fn add_kel_finalized_event(
