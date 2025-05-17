@@ -1,6 +1,6 @@
 use std::{fmt, str::FromStr};
 
-use fraction::{Fraction, One, Zero};
+pub use fraction::{Fraction, One, Zero};
 use itertools::Itertools;
 use serde::ser::{SerializeMap, Serializer};
 use serde::{
