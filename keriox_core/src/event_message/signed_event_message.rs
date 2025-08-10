@@ -25,6 +25,15 @@ pub enum Message {
     Op(Op),
 }
 
+impl<N> From<N> for Message
+where
+    N: Into<Notice>,
+{
+    fn from(n: N) -> Self {
+        Self::Notice(n.into())
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Notice {
     Event(SignedEventMessage),
@@ -32,6 +41,12 @@ pub enum Notice {
     // use SignedNontransferableReceipt and SignedTransferableReceipt
     NontransferableRct(SignedNontransferableReceipt),
     TransferableRct(SignedTransferableReceipt),
+}
+
+impl From<SignedEventMessage> for Notice {
+    fn from(signed_event_message: SignedEventMessage) -> Self {
+        Self::Event(signed_event_message)
+    }
 }
 
 #[cfg(any(feature = "query", feature = "oobi"))]
@@ -121,7 +136,7 @@ impl Op {
 }
 
 // KERI serializer should be used to serialize this
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, rkyv::Serialize, rkyv::Deserialize, rkyv::Archive)]
 pub struct SignedEventMessage {
     pub event_message: KeriEvent<KeyEvent>,
     #[serde(skip_serializing)]

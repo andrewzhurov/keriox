@@ -1,6 +1,9 @@
 use std::fmt::{self, Display};
 
-use crate::{database::redb::rkyv_adapter::said_wrapper::SaidValue, prefix::IdentifierPrefix};
+use crate::{
+    database::redb::rkyv_adapter::said_wrapper::SaidValue, event_message::msg::KeriEvent,
+    prefix::IdentifierPrefix,
+};
 use said::SelfAddressingIdentifier;
 use serde::{Deserialize, Serialize};
 use serde_hex::{Compact, SerHex};
@@ -46,9 +49,13 @@ impl DigestSeal {
     }
 }
 
-impl From<SelfAddressingIdentifier> for DigestSeal {
-    fn from(said: SelfAddressingIdentifier) -> Self {
-        DigestSeal::new(said)
+
+impl<I> From<I> for DigestSeal
+where
+    I: Into<SelfAddressingIdentifier>,
+{
+    fn from(i: I) -> Self {
+        DigestSeal::new(i.into())
     }
 }
 
@@ -78,6 +85,7 @@ pub struct RootSeal {
 }
 
 #[derive(
+    Hash,
     Serialize,
     Deserialize,
     // Debug,
@@ -97,7 +105,7 @@ pub struct EventSeal {
     pub sn: u64,
 
     #[serde(rename = "d")]
-    event_digest: SaidValue,
+    pub event_digest: SaidValue,
 }
 
 impl EventSeal {
@@ -115,6 +123,27 @@ impl EventSeal {
 
     pub fn event_digest(&self) -> SelfAddressingIdentifier {
         self.event_digest.said.clone()
+    }
+}
+
+use crate::event::KeyEvent;
+impl From<&KeriEvent<KeyEvent>> for EventSeal {
+    fn from(ke: &KeriEvent<KeyEvent>) -> EventSeal {
+        EventSeal {
+            prefix: ke.data.prefix.clone(),
+            sn: ke.data.sn,
+            event_digest: ke.digest.clone().unwrap(),
+        }
+    }
+}
+use crate::state::IdentifierState;
+impl From<IdentifierState> for EventSeal {
+    fn from(value: IdentifierState) -> Self {
+        EventSeal {
+            prefix: value.prefix.clone(),
+            sn: value.sn,
+            event_digest: value.last_event_digest.clone(),
+        }
     }
 }
 

@@ -6,7 +6,7 @@ use crate::query::{key_state_notice::KeyStateNotice, reply_event::SignedReply};
 use crate::{
     actor::prelude::Message,
     database::{
-        redb::RedbDatabase,
+        redb::{rkyv_adapter::said_wrapper::SaidValue, RedbDatabase},
         timestamped::{Timestamped, TimestampedSignedEventMessage},
     },
     error::Error,
@@ -472,5 +472,83 @@ impl<D: EventDatabase> EventStorage<D> {
             .get_state(prefix)
             .ok_or_else(|| Error::SemanticError("No state in db".into()))?;
         Ok(KeyStateNotice::new_ksn(state, format))
+    }
+
+    /// Returns establishment events from ke (exclusive) up to ke (inclusive).
+    pub fn est_events_in_range(
+        &self,
+        prefix: IdentifierPrefix,
+        from_ke_said: &SelfAddressingIdentifier,
+        from_ke_sn: u64,
+        to_ke_said: &SelfAddressingIdentifier,
+        to_ke_sn: u64,
+    ) -> Vec<TimestampedSignedEventMessage> {
+        if to_ke_sn <= from_ke_sn {
+            return vec![];
+        }
+
+        if let Some(events) = self
+            .events_db
+            .get_kel_finalized_events(QueryParameters::Range {
+                id: prefix,
+                start: from_ke_sn,
+                limit: to_ke_sn - from_ke_sn + 1,
+            })
+            .map(|i| i.collect::<Vec<_>>())
+        {
+            // does this behave as expected? Need to learn what happens when duplicious events get into db.
+            events
+                .into_iter()
+                .filter(|evt| {
+                    evt.signed_event_message
+                        .event_message
+                        .event_type
+                        .is_establishment_event()
+                })
+                .collect::<Vec<_>>()
+        } else {
+            vec![]
+        }
+    }
+
+    /// Note: works only on "authoritative" KELs
+    // TODO handle duplicious events gracefully, fallback to ke_said->key_event lookup
+    pub fn get_last_event_est_as_of(
+        &self,
+        prefix: IdentifierPrefix,
+        ke_saidv: &SaidValue,
+        ke_sn: u64,
+    ) -> Option<TimestampedSignedEventMessage> {
+        if let Some(events) = self
+            .events_db
+            .get_kel_finalized_events(QueryParameters::Range {
+                id: prefix,
+                start: 0,
+                limit: ke_sn + 1,
+            })
+            .map(|i| i.collect::<Vec<_>>())
+        {
+            // does this behave as expected? Need to learn what happens when duplicious events get into db.
+            if events.last().is_some_and(|last_evt| {
+                last_evt
+                    .signed_event_message
+                    .event_message
+                    .digest
+                    .as_ref()
+                    .is_some_and(|saidv| saidv == ke_saidv)
+            }) {
+                events.into_iter().rev().find(|event| {
+                    event
+                        .signed_event_message
+                        .event_message
+                        .event_type
+                        .is_establishment_event()
+                })
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 }

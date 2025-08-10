@@ -18,6 +18,7 @@ pub mod mailbox;
 pub mod redb;
 pub mod timestamped;
 
+#[derive(Debug)]
 pub enum QueryParameters<'a> {
     BySn {
         id: IdentifierPrefix,
@@ -25,8 +26,8 @@ pub enum QueryParameters<'a> {
     },
     Range {
         id: IdentifierPrefix,
-        start: u64,
-        limit: u64,
+        start: u64, // inclusive
+        limit: u64, // exclusive
     },
     All {
         id: &'a IdentifierPrefix,

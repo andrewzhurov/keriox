@@ -43,6 +43,13 @@ impl IdentifierPrefix {
     pub fn self_signing(self_signing: SelfSigningPrefix) -> Self {
         IdentifierPrefix::SelfSigning(self_signing)
     }
+
+    pub fn as_said_value(&self) -> Option<SaidValue> {
+        match self {
+            Self::SelfAddressing(said_value) => Some(said_value.clone()),
+            _ => None,
+        }
+    }
 }
 
 impl Display for IdentifierPrefix {

@@ -38,7 +38,7 @@ pub struct TypedEvent<T: Serialize + Clone, D: Serialize + Clone + Typeable<Type
     /// its length depends on derivation type. Then it is replaced by computed
     /// SAI.
     #[serde(rename = "d")]
-    pub(crate) digest: Option<SaidValue>,
+    pub digest: Option<SaidValue>,
     #[serde(flatten)]
     pub data: D,
 }

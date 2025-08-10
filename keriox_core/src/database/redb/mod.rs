@@ -2,7 +2,7 @@ pub mod escrow_database;
 #[cfg(feature = "query")]
 pub(crate) mod ksn_log;
 pub(crate) mod loging;
-pub(crate) mod rkyv_adapter;
+pub mod rkyv_adapter;
 
 /// Kel storage. (identifier, sn) -> event digest
 /// The `KELS` table links an identifier and sequence number to the digest of an event,
@@ -77,14 +77,14 @@ pub enum KeyError {
 }
 
 /// Represents the mode for executing database transactions.
-pub(crate) enum WriteTxnMode<'a> {
+pub enum WriteTxnMode<'a> {
     /// Initiates a new transaction that is committed after operations are executed.
     CreateNew,
     /// Utilizes an already active transaction for operations.
     UseExisting(&'a redb::WriteTransaction),
 }
 pub struct RedbDatabase {
-    pub(crate) db: Arc<Database>,
+    pub db: Arc<Database>,
     pub(crate) log_db: Arc<LogDatabase>,
     #[cfg(feature = "query")]
     accepted_rpy: Arc<AcceptedKsn>,
@@ -239,6 +239,8 @@ impl RedbDatabase {
         txn_mode: &WriteTxnMode,
         event: &KeriEvent<KeyEvent>,
     ) -> Result<(), RedbError> {
+        // these two seem to be need to run within a single txn,
+        // perhaps we can start txn, if txn_mode is CreateNew.
         self.save_to_kel(txn_mode, event)?;
         self.update_key_state(txn_mode, event)?;
 
@@ -421,7 +423,7 @@ impl RedbDatabase {
 /// Executes a given operation within a transaction context.
 /// Uses an existing transaction if `WriteTxnMode::UseExisting` is specified.
 /// Creates and commits a new transaction if `WriteTxnMode::CreateNew` is specified.
-pub(crate) fn execute_in_transaction<F>(
+pub fn execute_in_transaction<F>(
     db: Arc<Database>,
     txn_mode: &WriteTxnMode,
     operation: F,

@@ -29,7 +29,7 @@ impl From<core::num::ParseIntError> for ThresholdError {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[derive(Hash, Debug, Clone, PartialEq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 #[rkyv(derive(Debug))]
 pub struct ThresholdFraction {
     #[rkyv(with = rkyv_serialization::FractionDef)]
@@ -40,6 +40,17 @@ impl ThresholdFraction {
     pub fn new(n: u64, d: u64) -> Self {
         Self {
             fraction: Fraction::new(n, d),
+        }
+    }
+}
+
+use std::ops::Div;
+impl Div<&Fraction> for &ThresholdFraction {
+    type Output = ThresholdFraction;
+
+    fn div(self, rhs: &Fraction) -> Self::Output {
+        Self::Output {
+            fraction: self.fraction / *rhs,
         }
     }
 }
@@ -108,6 +119,30 @@ pub enum SignatureThreshold {
     Claused(ClausedThreshold),
 }
 
+impl SignatureThreshold {
+    pub fn one() -> Self {
+        SignatureThreshold::from(vec![(1, 1)])
+    }
+}
+
+impl SignatureThreshold {
+    pub fn get_claused(&self) -> Option<ClausedThreshold> {
+        match self {
+            SignatureThreshold::Claused(cl_th) => Some(cl_th.clone()),
+            _ => None,
+        }
+    }
+}
+
+impl SignatureThreshold {
+    pub fn get_clause(&self) -> Option<ThresholdClause> {
+        self.get_claused().and_then(|cl_th| match cl_th {
+            ClausedThreshold::Single(th_cl) => Some(th_cl),
+            _ => None,
+        })
+    }
+}
+
 #[derive(
     Serialize,
     Deserialize,
@@ -140,7 +175,7 @@ pub struct ThresholdClauses(
 pub struct ThresholdClause(
     #[serde(skip)] usize,
     #[serde(skip)] Vec<(usize, usize)>,
-    Vec<ThresholdClauseEl>,
+    pub Vec<ThresholdClauseEl>,
 );
 
 #[derive(
@@ -179,13 +214,16 @@ pub enum ThresholdClauseEl {
 impl ClausedThreshold {
     pub fn len(&self) -> usize {
         match self {
-            ClausedThreshold::Single(ref threshold_clause) => threshold_clause.len(),
-            ClausedThreshold::Multi(ref threshold_clauses) => threshold_clauses.len(),
+            ClausedThreshold::Single(threshold_clause) => threshold_clause.len(),
+            ClausedThreshold::Multi(threshold_clauses) => threshold_clauses.len(),
         }
     }
 }
 
 impl ThresholdClauses {
+    pub fn new(len: usize, idxes: Vec<(usize, usize)>, clauses: Vec<ThresholdClause>) -> Self {
+        Self(len, idxes, clauses)
+    }
     pub fn len(&self) -> usize {
         self.0
     }
@@ -198,6 +236,9 @@ impl ThresholdClauses {
 }
 
 impl ThresholdClause {
+    pub fn new(len: usize, idxes: Vec<(usize, usize)>, clause: Vec<ThresholdClauseEl>) -> Self {
+        Self(len, idxes, clause)
+    }
     pub fn len(&self) -> usize {
         self.0
     }
@@ -284,10 +325,8 @@ pub fn create_sig_mask<I: IntoIterator<Item = usize>>(idxes: I, len: usize) -> V
 impl SignatureThreshold {
     pub fn enough_signatures<I: IntoIterator<Item = usize>>(&self, indexes_iter: I) -> bool {
         match self {
-            SignatureThreshold::Simple(ref t) => {
-                indexes_iter.into_iter().unique().count() as u64 >= *t
-            }
-            SignatureThreshold::Claused(ref claused_threshold) => {
+            SignatureThreshold::Simple(t) => indexes_iter.into_iter().unique().count() as u64 >= *t,
+            SignatureThreshold::Claused(claused_threshold) => {
                 let sig_mask = create_sig_mask(indexes_iter, claused_threshold.len());
                 claused_threshold.enough_signatures(&sig_mask)
             }
@@ -298,10 +337,10 @@ impl SignatureThreshold {
 impl ClausedThreshold {
     pub fn enough_signatures(&self, sig_mask: &[bool]) -> bool {
         match self {
-            ClausedThreshold::Single(ref threshold_clause) => {
+            ClausedThreshold::Single(threshold_clause) => {
                 threshold_clause.enough_signatures(sig_mask)
             }
-            ClausedThreshold::Multi(ref threshold_clauses) => {
+            ClausedThreshold::Multi(threshold_clauses) => {
                 threshold_clauses.enough_signatures(sig_mask)
             }
         }
@@ -344,11 +383,15 @@ impl ThresholdClause {
 }
 
 impl ThresholdClauseEl {
-    fn weight(&self) -> &ThresholdFraction {
+    pub fn weight(&self) -> &ThresholdFraction {
         match self {
             Self::Weight(weight) => weight,
             Self::WeightedClausedThreshold(weight, _) => weight,
         }
+    }
+
+    pub fn fraction(&self) -> &Fraction {
+        &self.weight().fraction
     }
 
     fn enough_signatures(&self, sig_mask: &[bool]) -> bool {
@@ -383,6 +426,12 @@ impl From<Vec<(u64, u64)>> for SignatureThreshold {
 impl From<Vec<ThresholdClauseEl>> for SignatureThreshold {
     fn from(threshold_clause_els: Vec<ThresholdClauseEl>) -> Self {
         Self::Claused(ClausedThreshold::from(threshold_clause_els))
+    }
+}
+
+impl From<ThresholdClause> for SignatureThreshold {
+    fn from(threshold_clause: ThresholdClause) -> Self {
+        Self::Claused(ClausedThreshold::Single(threshold_clause))
     }
 }
 

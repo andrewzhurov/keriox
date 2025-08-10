@@ -11,7 +11,7 @@ use crate::{
     state::IdentifierState,
 };
 
-pub(crate) mod said_wrapper;
+pub mod said_wrapper;
 pub(crate) mod serialization_info_wrapper;
 
 pub fn serialize_said(said: &SelfAddressingIdentifier) -> Result<AlignedVec, rkyv::rancor::Error> {

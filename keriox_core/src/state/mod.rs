@@ -3,7 +3,7 @@ use crate::{
     error::Error,
     event::{
         event_data::EventData,
-        sections::{threshold::SignatureThreshold, KeyConfig},
+        sections::{seal::EventSeal, threshold::SignatureThreshold, KeyConfig},
     },
     event_message::EventTypeTag,
     prefix::{BasicPrefix, IdentifierPrefix, IndexedSignature, SelfSigningPrefix},
@@ -25,9 +25,9 @@ use serde_hex::{Compact, SerHex};
 )]
 pub struct LastEstablishmentData {
     #[serde(rename = "s", with = "SerHex::<Compact>")]
-    pub(crate) sn: u64,
+    pub sn: u64,
     #[serde(rename = "d")]
-    pub(crate) digest: SaidValue,
+    pub digest: SaidValue,
     #[serde(rename = "br")]
     pub(crate) br: Vec<BasicPrefix>,
     #[serde(rename = "ba")]

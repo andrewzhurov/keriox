@@ -50,6 +50,7 @@ async fn test_group_incept() -> Result<(), ControllerError> {
     // `finalize_event`, to send multisig request to other group participants.
     // Identifier who get this request from mailbox, can use just `finalize_event`
     let group_id = identifier1
+        // why this doesn't fail? only 1 sig is present, >=2 is required
         .finalize_group_incept(
             group_inception.as_bytes(),
             signature_icp,
