@@ -23,8 +23,6 @@ use crate::{
 };
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
-use redb::TableDefinition;
-use rkyv::util::AlignedVec;
 use said::version::format::SerializationFormats;
 use said::{
     derivation::{HashFunction, HashFunctionCode},
@@ -43,9 +41,7 @@ pub struct EventMsgBuilder {
     next_keys: Vec<BasicPrefix>,
     next_keys_hashes: Option<Vec<SelfAddressingIdentifier>>,
     prev_event: SelfAddressingIdentifier,
-    pub data: Vec<Seal>,
-    pub sers: Vec<AlignedVec>,
-    pub sers_tables: Vec<TableDefinition<'static, &'static [u8], &'static [u8]>>,
+    data: Vec<Seal>,
     delegator: IdentifierPrefix,
     witness_threshold: SignatureThreshold,
     witnesses: Vec<BasicPrefix>,
@@ -74,8 +70,6 @@ impl EventMsgBuilder {
             sn: 1,
             prev_event: hash_function.derive(&[0u8; 32]),
             data: vec![],
-            sers: vec![],
-            sers_tables: vec![],
             delegator: IdentifierPrefix::default(),
             witness_threshold: SignatureThreshold::Simple(0),
             witnesses: vec![],
@@ -197,7 +191,7 @@ impl EventMsgBuilder {
                         initial_witnesses: self.witnesses,
                     },
                     inception_configuration: vec![],
-                    data: self.data,
+                    data: vec![],
                 };
 
                 match prefix {
