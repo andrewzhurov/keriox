@@ -6,7 +6,10 @@ use super::compute_state;
 use crate::query::{key_state_notice::KeyStateNotice, reply_event::SignedReply};
 use crate::{
     actor::prelude::Message,
-    database::timestamped::{Timestamped, TimestampedSignedEventMessage},
+    database::{
+        redb::rkyv_adapter::said_wrapper::SaidValue,
+        timestamped::{Timestamped, TimestampedSignedEventMessage},
+    },
     error::Error,
     event::{
         event_data::EventData,
@@ -17,7 +20,6 @@ use crate::{
         signed_event_message::{Notice, SignedNontransferableReceipt},
     },
     prefix::{BasicPrefix, IdentifierPrefix},
-    redb::rkyv_adapter::said_wrapper::SaidValue,
     state::{EventSemantics, IdentifierState},
 };
 #[cfg(feature = "mailbox")]
