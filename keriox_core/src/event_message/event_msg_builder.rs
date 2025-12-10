@@ -41,7 +41,7 @@ pub struct EventMsgBuilder {
     next_keys: Vec<BasicPrefix>,
     next_keys_hashes: Option<Vec<SelfAddressingIdentifier>>,
     prev_event: SelfAddressingIdentifier,
-    data: Vec<Seal>,
+    pub data: Vec<Seal>,
     delegator: IdentifierPrefix,
     witness_threshold: SignatureThreshold,
     witnesses: Vec<BasicPrefix>,
