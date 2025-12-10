@@ -1,3 +1,6 @@
+#![feature(trivial_bounds)]
+// #![feature(trait_alias)]
+
 pub mod actor;
 pub mod database;
 pub mod error;

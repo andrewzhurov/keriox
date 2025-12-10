@@ -518,14 +518,14 @@ impl<D: EventDatabase> EventStorage<D> {
     // TODO handle duplicious events gracefully, fallback to ke_said->key_event lookup
     pub fn get_last_event_est_as_of(
         &self,
-        prefix: IdentifierPrefix,
-        ke_saidv: &SaidValue,
+        prefix: &IdentifierPrefix,
+        ke_said: &SaidValue,
         ke_sn: u64,
     ) -> Option<TimestampedSignedEventMessage> {
         if let Some(events) = self
             .events_db
             .get_kel_finalized_events(QueryParameters::Range {
-                id: prefix,
+                id: prefix.clone(),
                 start: 0,
                 limit: ke_sn + 1,
             })
@@ -538,7 +538,7 @@ impl<D: EventDatabase> EventStorage<D> {
                     .event_message
                     .digest
                     .as_ref()
-                    .is_some_and(|saidv| saidv == ke_saidv)
+                    .is_some_and(|saidv| saidv == ke_said)
             }) {
                 events.into_iter().rev().find(|event| {
                     event

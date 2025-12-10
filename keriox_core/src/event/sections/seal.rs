@@ -49,7 +49,6 @@ impl DigestSeal {
     }
 }
 
-
 impl<I> From<I> for DigestSeal
 where
     I: Into<SelfAddressingIdentifier>,
@@ -119,6 +118,10 @@ impl EventSeal {
             sn,
             event_digest: event_digest.into(),
         }
+    }
+
+    pub fn prefix(&self) -> &IdentifierPrefix {
+        &self.prefix
     }
 
     pub fn event_digest(&self) -> SelfAddressingIdentifier {

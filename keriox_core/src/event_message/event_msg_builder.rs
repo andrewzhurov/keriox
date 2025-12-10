@@ -175,6 +175,7 @@ impl EventMsgBuilder {
         };
         let key_config = KeyConfig::new(self.keys, next_key_hash, Some(self.key_threshold));
         let prefix = if self.prefix == IdentifierPrefix::default() {
+            // Be sure to do .with_prefix() on your Rot and Ixn events!
             let icp_data = InceptionEvent::new(key_config.clone(), None, None)
                 .incept_self_addressing(self.derivation.clone(), self.format)?;
             icp_data.data.get_prefix()

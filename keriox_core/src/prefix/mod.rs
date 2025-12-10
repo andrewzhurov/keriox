@@ -88,6 +88,12 @@ impl From<SelfAddressingIdentifier> for IdentifierPrefix {
     }
 }
 
+impl From<SaidValue> for IdentifierPrefix {
+    fn from(said_value: SaidValue) -> Self {
+        Self::SelfAddressing(said_value)
+    }
+}
+
 impl CesrPrimitive for IdentifierPrefix {
     fn derivative(&self) -> Vec<u8> {
         match self {
@@ -451,14 +457,13 @@ mod tests {
         assert_eq!(dig.to_str(), "EP9XvFnpQP4vnaTNDNAMU2T7nxDPe1EZLUaiABcLRfS4");
 
         // Prefixes from keripy/tests/core/test_coring:test_matter
-        let self_signing_b64 =
-        "mdI8OSQkMJ9r-xigjEByEjIua7LHH3AOJ22PQKqljMhuhcgh9nGRcKnsz5KvKd7K_H9-1298F4Id1DxvIoEmCQ==";
+        let self_signing_b64 = "mdI8OSQkMJ9r-xigjEByEjIua7LHH3AOJ22PQKqljMhuhcgh9nGRcKnsz5KvKd7K_H9-1298F4Id1DxvIoEmCQ==";
         let self_signing_raw = base64::decode_config(self_signing_b64, base64::URL_SAFE).unwrap();
 
         let ssp = SelfSigningPrefix::Ed25519Sha512(self_signing_raw);
         assert_eq!(
-        ssp.to_str(),
-        "0BCZ0jw5JCQwn2v7GKCMQHISMi5rsscfcA4nbY9AqqWMyG6FyCH2cZFwqezPkq8p3sr8f37Xb3wXgh3UPG8igSYJ"
-    );
+            ssp.to_str(),
+            "0BCZ0jw5JCQwn2v7GKCMQHISMi5rsscfcA4nbY9AqqWMyG6FyCH2cZFwqezPkq8p3sr8f37Xb3wXgh3UPG8igSYJ"
+        );
     }
 }

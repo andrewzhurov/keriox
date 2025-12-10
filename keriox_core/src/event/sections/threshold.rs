@@ -55,6 +55,12 @@ impl ThresholdFraction {
     }
 }
 
+impl From<Fraction> for ThresholdFraction {
+    fn from(fraction: Fraction) -> Self {
+        Self { fraction }
+    }
+}
+
 use std::ops::Div;
 impl Div<&Fraction> for &ThresholdFraction {
     type Output = ThresholdFraction;
@@ -143,11 +149,25 @@ impl SignatureThreshold {
             _ => None,
         }
     }
+
+    pub fn get_claused_ref(&self) -> Option<&ClausedThreshold> {
+        match self {
+            SignatureThreshold::Claused(cl_th) => Some(cl_th),
+            _ => None,
+        }
+    }
 }
 
 impl SignatureThreshold {
     pub fn get_clause(&self) -> Option<ThresholdClause> {
         self.get_claused().and_then(|cl_th| match cl_th {
+            ClausedThreshold::Single(th_cl) => Some(th_cl),
+            _ => None,
+        })
+    }
+
+    pub fn get_clause_ref(&self) -> Option<&ThresholdClause> {
+        self.get_claused_ref().and_then(|cl_th| match cl_th {
             ClausedThreshold::Single(th_cl) => Some(th_cl),
             _ => None,
         })
