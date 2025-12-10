@@ -4,6 +4,7 @@ use crate::prefix::IdentifierPrefix;
 use crate::state::IdentifierState;
 use said::derivation::HashFunction;
 use said::version::format::SerializationFormats;
+use sections::threshold::{SignatureThreshold, ThresholdClause};
 use serde::{Deserialize, Serialize};
 pub mod event_data;
 pub mod receipt;
@@ -63,6 +64,14 @@ impl KeyEvent {
 
     pub fn get_key_config(&self) -> Option<&KeyConfig> {
         self.event_data.get_key_config()
+    }
+
+    pub fn get_threshold(&self) -> Option<&SignatureThreshold> {
+        self.get_key_config().map(|key_conf| &key_conf.threshold)
+    }
+
+    pub fn get_threshold_clause(&self) -> Option<&ThresholdClause> {
+        self.get_threshold().and_then(|th| th.get_clause_ref())
     }
 }
 
