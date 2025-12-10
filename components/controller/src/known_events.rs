@@ -1,3 +1,4 @@
+use bevy_derive::Deref;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -45,8 +46,10 @@ pub enum OobiRetrieveError {
     DbError(#[from] RedbError),
 }
 
+#[derive(Deref)]
 pub struct KnownEvents {
     processor: BasicProcessor<RedbDatabase>,
+    #[deref]
     pub storage: Arc<EventStorage<RedbDatabase>>,
     pub oobi_manager: OobiManager,
     pub partially_witnessed_escrow: Arc<PartiallyWitnessedEscrow>,

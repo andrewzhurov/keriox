@@ -1,3 +1,4 @@
+use bevy_derive::Deref;
 use cesrox::{group::Group, ParsedData};
 use serde::{ser::SerializeStruct, Deserialize, Serialize};
 
@@ -136,8 +137,9 @@ impl Op {
 }
 
 // KERI serializer should be used to serialize this
-#[derive(Debug, Clone, Deserialize, rkyv::Serialize, rkyv::Deserialize, rkyv::Archive)]
+#[derive(Debug, Clone, Deserialize, rkyv::Serialize, rkyv::Deserialize, rkyv::Archive, Deref)]
 pub struct SignedEventMessage {
+    #[deref]
     pub event_message: KeriEvent<KeyEvent>,
     #[serde(skip_serializing)]
     pub signatures: Vec<IndexedSignature>,

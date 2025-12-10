@@ -1,3 +1,4 @@
+use bevy_derive::Deref;
 use said::version::{format::SerializationFormats, SerializationInfo};
 use said::{
     derivation::HashFunction, derivation::HashFunctionCode, sad::SAD, SelfAddressingIdentifier,
@@ -20,6 +21,7 @@ pub type KeriEvent<D> = TypedEvent<EventTypeTag, D>;
     rkyv::Archive,
     rkyv::Serialize,
     rkyv::Deserialize,
+    Deref,
 )]
 pub struct TypedEvent<T: Serialize + Clone, D: Serialize + Clone + Typeable<TypeTag = T>> {
     /// Serialization Information
@@ -40,6 +42,7 @@ pub struct TypedEvent<T: Serialize + Clone, D: Serialize + Clone + Typeable<Type
     #[serde(rename = "d")]
     pub digest: Option<SaidValue>,
     #[serde(flatten)]
+    #[deref]
     pub data: D,
 }
 

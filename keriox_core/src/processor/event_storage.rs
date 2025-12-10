@@ -1,3 +1,4 @@
+use bevy_derive::Deref;
 use std::sync::Arc;
 
 use super::compute_state;
@@ -34,7 +35,9 @@ use said::SelfAddressingIdentifier;
 #[cfg(feature = "mailbox")]
 use crate::mailbox::MailboxResponse;
 
+#[derive(Deref)]
 pub struct EventStorage<D: EventDatabase> {
+    #[deref]
     pub events_db: Arc<D>,
     #[cfg(feature = "mailbox")]
     pub mailbox_data: MailboxData,

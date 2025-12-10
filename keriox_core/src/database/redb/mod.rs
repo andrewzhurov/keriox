@@ -14,6 +14,7 @@ const KELS: TableDefinition<(&str, u64), &[u8]> = TableDefinition::new("kels");
 /// as events are processed.
 const KEY_STATES: TableDefinition<&str, &[u8]> = TableDefinition::new("key_states");
 
+use bevy_derive::Deref;
 use std::{path::Path, sync::Arc, u64};
 
 #[cfg(feature = "query")]
@@ -83,7 +84,10 @@ pub enum WriteTxnMode<'a> {
     /// Utilizes an already active transaction for operations.
     UseExisting(&'a redb::WriteTransaction),
 }
+
+#[derive(Deref)]
 pub struct RedbDatabase {
+    #[deref]
     pub db: Arc<Database>,
     pub(crate) log_db: Arc<LogDatabase>,
     #[cfg(feature = "query")]
