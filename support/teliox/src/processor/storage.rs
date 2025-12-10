@@ -3,7 +3,7 @@ use std::sync::Arc;
 use keri_core::prefix::IdentifierPrefix;
 
 use crate::{
-    database::EventDatabase,
+    database::TelEventDatabase,
     error::Error,
     event::{verifiable_event::VerifiableEvent, Event},
     query::TelQueryRoute,
@@ -12,11 +12,11 @@ use crate::{
 
 use super::TelReplyType;
 
-pub struct TelEventStorage {
-    pub db: Arc<EventDatabase>,
+pub struct TelEventStorage<D: TelEventDatabase> {
+    pub db: Arc<D>,
 }
-impl TelEventStorage {
-    pub fn new(db: Arc<EventDatabase>) -> Self {
+impl<D: TelEventDatabase> TelEventStorage<D> {
+    pub fn new(db: Arc<D>) -> Self {
         Self { db }
     }
 
@@ -98,14 +98,8 @@ impl TelEventStorage {
     }
 
     pub fn add_event(&self, event: VerifiableEvent) -> Result<(), Error> {
-        match &event.event {
-            Event::Management(_man) => self
-                .db
-                .add_new_management_event(event.clone(), &event.get_event().get_prefix()),
-            Event::Vc(_vc) => self
-                .db
-                .add_new_event(event.clone(), &event.get_event().get_prefix()),
-        }
+        self.db
+            .add_new_event(event.clone(), &event.get_event().get_prefix())
     }
 
     pub fn process_query(&self, qry: &TelQueryRoute) -> Result<TelReplyType, Error> {

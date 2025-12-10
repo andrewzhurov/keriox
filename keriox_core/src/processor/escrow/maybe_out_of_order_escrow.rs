@@ -1,15 +1,8 @@
 use std::{sync::Arc, time::Duration};
 
-use said::SelfAddressingIdentifier;
-
 use crate::{
-    database::{
-        redb::{escrow_database::SnKeyDatabase, loging::LogDatabase, RedbDatabase, RedbError},
-        EventDatabase,
-    },
+    database::{EscrowCreator, EscrowDatabase, EventDatabase},
     error::Error,
-    event::KeyEvent,
-    event_message::{msg::KeriEvent, signed_event_message::SignedEventMessage},
     prefix::IdentifierPrefix,
 };
 
@@ -18,52 +11,32 @@ use crate::processor::{
     validator::EventValidator,
 };
 
-pub struct MaybeOutOfOrderEscrow {
-    db: Arc<RedbDatabase>,
-    pub(crate) escrowed_out_of_order: SnKeyEscrow,
+pub struct MaybeOutOfOrderEscrow<D: EventDatabase + EscrowCreator> {
+    db: Arc<D>,
+    pub(crate) escrowed_out_of_order: D::EscrowDatabaseType,
 }
 
-impl MaybeOutOfOrderEscrow {
-    pub fn new(db: Arc<RedbDatabase>, _duration: Duration) -> Self {
-        let ooo_escrowdb = SnKeyEscrow::new(
-            Arc::new(SnKeyDatabase::new(db.db.clone(), "out_of_order_escrow").unwrap()),
-            db.log_db.clone(),
-        );
+impl<D: EventDatabase + EscrowCreator + 'static> MaybeOutOfOrderEscrow<D> {
+    pub fn new(db: Arc<D>, _duration: Duration) -> Self {
+        let escrow_db = db.create_escrow_db("out_of_order_escrow");
+
         Self {
             db,
-            escrowed_out_of_order: ooo_escrowdb,
+            escrowed_out_of_order: escrow_db,
         }
     }
-}
-impl Notifier for MaybeOutOfOrderEscrow {
-    fn notify(&self, notification: &Notification, bus: &NotificationBus) -> Result<(), Error> {
-        match notification {
-            Notification::KeyEventAdded(ev_message) => {
-                let id = ev_message.event_message.data.get_prefix();
-                let sn = ev_message.event_message.data.sn;
-                self.process_out_of_order_events(bus, &id, sn)?;
-            }
-            Notification::OutOfOrder(signed_event) => {
-                // ignore events with no signatures
-                if !signed_event.signatures.is_empty() {
-                    self.escrowed_out_of_order.insert(signed_event)?;
-                }
-            }
-            _ => return Err(Error::SemanticError("Wrong notification".into())),
-        }
 
-        Ok(())
-    }
-}
-
-impl MaybeOutOfOrderEscrow {
     pub fn process_out_of_order_events(
         &self,
         bus: &NotificationBus,
         id: &IdentifierPrefix,
         sn: u64,
     ) -> Result<(), Error> {
-        for event in self.escrowed_out_of_order.get_from_sn(id, sn)? {
+        for event in self
+            .escrowed_out_of_order
+            .get_from_sn(id, sn)
+            .map_err(|_| Error::DbError)?
+        {
             let validator = EventValidator::new(self.db.clone());
             match validator.validate_event(&event) {
                 Ok(_) => {
@@ -89,106 +62,32 @@ impl MaybeOutOfOrderEscrow {
     }
 }
 
-pub struct SnKeyEscrow {
-    escrow: Arc<SnKeyDatabase>,
-    log: Arc<LogDatabase>,
-}
-
-impl SnKeyEscrow {
-    pub(crate) fn new(escrow: Arc<SnKeyDatabase>, log: Arc<LogDatabase>) -> Self {
-        Self { escrow, log }
-    }
-
-    pub fn save_digest(
-        &self,
-        id: &IdentifierPrefix,
-        sn: u64,
-        event_digest: &SelfAddressingIdentifier,
-    ) -> Result<(), RedbError> {
-        self.escrow.insert(id, sn, event_digest)?;
-
-        Ok(())
-    }
-
-    pub fn insert(&self, event: &SignedEventMessage) -> Result<(), RedbError> {
-        self.log
-            .log_event(&crate::database::redb::WriteTxnMode::CreateNew, &event)?;
-        let said = event.event_message.digest().unwrap();
-        let id = event.event_message.data.get_prefix();
-        let sn = event.event_message.data.sn;
-        self.escrow.insert(&id, sn, &said)?;
+impl<D: EventDatabase + EscrowCreator + 'static> Notifier for MaybeOutOfOrderEscrow<D> {
+    fn notify(&self, notification: &Notification, bus: &NotificationBus) -> Result<(), Error> {
+        match notification {
+            Notification::KeyEventAdded(ev_message) => {
+                let id = ev_message.event_message.data.get_prefix();
+                let sn = ev_message.event_message.data.sn;
+                self.process_out_of_order_events(bus, &id, sn)?;
+            }
+            Notification::OutOfOrder(signed_event) => {
+                // ignore events with no signatures
+                if !signed_event.signatures.is_empty() {
+                    self.escrowed_out_of_order
+                        .insert(signed_event)
+                        .map_err(|_| Error::DbError)?;
+                }
+            }
+            _ => return Err(Error::SemanticError("Wrong notification".into())),
+        }
 
         Ok(())
-    }
-
-    pub fn insert_key_value(
-        &self,
-        id: &IdentifierPrefix,
-        sn: u64,
-        event: &SignedEventMessage,
-    ) -> Result<(), RedbError> {
-        self.log
-            .log_event(&crate::database::redb::WriteTxnMode::CreateNew, &event)?;
-        let said = event.event_message.digest().unwrap();
-
-        self.escrow.insert(&id, sn, &said)?;
-
-        Ok(())
-    }
-
-    pub fn get<'a>(
-        &'a self,
-        identifier: &IdentifierPrefix,
-        sn: u64,
-    ) -> Result<impl Iterator<Item = SignedEventMessage> + 'a, RedbError> {
-        Ok(self.escrow.get(identifier, sn)?.filter_map(move |said| {
-            self.log
-                .get_signed_event(&said)
-                .unwrap()
-                .map(|el| el.signed_event_message)
-        }))
-    }
-
-    pub fn get_from_sn<'a>(
-        &'a self,
-        identifier: &IdentifierPrefix,
-        sn: u64,
-    ) -> Result<impl Iterator<Item = SignedEventMessage> + 'a, RedbError> {
-        Ok(self
-            .escrow
-            .get_grater_then(identifier, sn)?
-            .map(move |said| {
-                self.log
-                    .get_signed_event(&said)
-                    .unwrap()
-                    .unwrap()
-                    .signed_event_message
-            }))
-    }
-
-    pub fn remove(&self, event: &KeriEvent<KeyEvent>) {
-        let said = event.digest().unwrap();
-        let id = event.data.get_prefix();
-        let sn = event.data.sn;
-        self.escrow.remove(&id, sn, &said).unwrap();
-    }
-
-    pub fn contains(
-        &self,
-        id: &IdentifierPrefix,
-        sn: u64,
-        digest: &SelfAddressingIdentifier,
-    ) -> Result<bool, RedbError> {
-        Ok(self
-            .escrow
-            .get(id, sn)?
-            .find(|said| said == digest)
-            .is_some())
     }
 }
 
 #[test]
 fn test_out_of_order() -> Result<(), Error> {
+    use crate::database::redb::RedbDatabase;
     use crate::event_message::signed_event_message::{Message, Notice};
     use crate::processor::JustNotification;
     use crate::processor::{
@@ -210,7 +109,8 @@ fn test_out_of_order() -> Result<(), Error> {
 
     let (processor, storage, ooo_escrow) = {
         let events_db_path = NamedTempFile::new().unwrap();
-        let events_db = Arc::new(RedbDatabase::new(events_db_path.path()).unwrap());
+        let redb = RedbDatabase::new(events_db_path.path()).unwrap();
+        let events_db = Arc::new(redb);
         let mut processor = BasicProcessor::new(events_db.clone(), None);
 
         // Register out of order escrow, to save and reprocess out of order events

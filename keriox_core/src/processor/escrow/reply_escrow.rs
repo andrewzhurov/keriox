@@ -9,7 +9,7 @@ use crate::{
             ksn_log::{AcceptedKsn, KsnLogDatabase},
             RedbDatabase, RedbError,
         },
-        EventDatabase,
+        EventDatabase, SequencedEventDatabase,
     },
     error::Error,
     prefix::IdentifierPrefix,
@@ -142,7 +142,7 @@ impl SnKeyReplyEscrow {
     ) -> Result<impl Iterator<Item = SignedReply> + 'a, RedbError> {
         Ok(self
             .escrow
-            .get_grater_then(identifier, sn)?
+            .get_greater_than(identifier, sn)?
             .map(move |said| self.log.get_signed_reply(&said).unwrap().unwrap()))
     }
 

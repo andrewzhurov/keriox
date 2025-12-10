@@ -9,7 +9,7 @@ use super::event_storage::EventStorage;
 #[cfg(feature = "query")]
 use crate::query::{key_state_notice::KeyStateNotice, reply_event::SignedReply, QueryError};
 use crate::{
-    database::{redb::RedbDatabase, EventDatabase},
+    database::EventDatabase,
     error::Error,
     event::{
         event_data::EventData,
@@ -60,8 +60,8 @@ pub struct EventValidator<D: EventDatabase> {
     event_storage: EventStorage<D>,
 }
 
-impl EventValidator<RedbDatabase> {
-    pub fn new(event_database: Arc<RedbDatabase>) -> Self {
+impl<D: EventDatabase + std::any::Any> EventValidator<D> {
+    pub fn new(event_database: Arc<D>) -> Self {
         Self {
             event_storage: EventStorage::new(event_database),
         }

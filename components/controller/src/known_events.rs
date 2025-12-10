@@ -23,14 +23,15 @@ use keri_core::{
         msg::KeriEvent,
         signed_event_message::{Message, Notice, Op},
     },
-    oobi::{OobiManager, Role, Scheme},
+    oobi::{Role, Scheme},
+    oobi_manager::OobiManager,
     processor::{
         basic_processor::BasicProcessor, escrow::default_escrow_bus, event_storage::EventStorage,
     },
     query::reply_event::{ReplyEvent, ReplyRoute, SignedReply},
 };
-use teliox::database::escrow::EscrowDb;
-use teliox::database::EventDatabase;
+use teliox::database::redb::RedbTelDatabase;
+use teliox::database::{EscrowDatabase, TelEventDatabase};
 use teliox::processor::escrow::default_escrow_bus as tel_escrow_bus;
 use teliox::processor::storage::TelEventStorage;
 use teliox::tel::Tel;
@@ -52,8 +53,8 @@ pub struct KnownEvents {
     #[deref]
     pub storage: Arc<EventStorage<RedbDatabase>>,
     pub oobi_manager: OobiManager,
-    pub partially_witnessed_escrow: Arc<PartiallyWitnessedEscrow>,
-    pub tel: Arc<Tel>,
+    pub partially_witnessed_escrow: Arc<PartiallyWitnessedEscrow<RedbDatabase>>,
+    pub tel: Arc<Tel<RedbTelDatabase, RedbDatabase>>,
 }
 
 impl KnownEvents {
@@ -84,27 +85,20 @@ impl KnownEvents {
             let mut path = db_path.clone();
             path.push("tel");
             path.push("events");
-            Arc::new(EventDatabase::new(&path)?)
+            Arc::new(RedbTelDatabase::new(&path)?)
         };
 
         let tel_escrow_db = {
             let mut path = db_path.clone();
             path.push("tel");
             path.push("escrow");
-            Arc::new(EscrowDb::new(&path).map_err(|e| ControllerError::OtherError(e.to_string()))?)
+            EscrowDatabase::new(&path).map_err(|e| ControllerError::OtherError(e.to_string()))?
         };
-        let tel_storage = Arc::new(TelEventStorage::new(tel_events_db));
-        let (tel_bus, missing_issuer, _out_of_order, _missing_registy) = tel_escrow_bus(
-            tel_storage.clone(),
-            kel_storage.clone(),
-            tel_escrow_db.clone(),
-        )?;
+        let (tel_bus, missing_issuer, _out_of_order, _missing_registy) =
+            tel_escrow_bus(tel_events_db.clone(), kel_storage.clone(), tel_escrow_db)?;
 
-        let tel = Arc::new(Tel::new(
-            tel_storage.clone(),
-            kel_storage.clone(),
-            Some(tel_bus),
-        ));
+        let tel_storage = Arc::new(TelEventStorage::new(tel_events_db.clone()));
+        let tel = Arc::new(Tel::new(tel_storage, kel_storage.clone(), Some(tel_bus)));
 
         notification_bus.register_observer(
             missing_issuer.clone(),
@@ -116,9 +110,7 @@ impl KnownEvents {
             storage: kel_storage,
             oobi_manager,
             partially_witnessed_escrow,
-            // transport,
             tel,
-            // tel_transport: tel_transport,
         };
 
         Ok(controller)

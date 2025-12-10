@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
-use keri_core::{database::redb::RedbDatabase, processor::event_storage::EventStorage};
+use keri_core::{database::EventDatabase, processor::event_storage::EventStorage};
 
 use crate::{
+    database::TelEventDatabase,
     error::Error,
     event::{verifiable_event::VerifiableEvent, Event},
     query::SignedTelQuery,
@@ -19,16 +20,16 @@ pub mod notification;
 pub mod storage;
 pub mod validator;
 
-pub struct TelEventProcessor {
-    kel_reference: Arc<EventStorage<RedbDatabase>>,
-    pub tel_reference: Arc<TelEventStorage>,
+pub struct TelEventProcessor<D: TelEventDatabase, K: EventDatabase> {
+    kel_reference: Arc<EventStorage<K>>,
+    pub tel_reference: Arc<TelEventStorage<D>>,
     pub publisher: TelNotificationBus,
 }
 
-impl TelEventProcessor {
+impl<D: TelEventDatabase, K: EventDatabase> TelEventProcessor<D, K> {
     pub fn new(
-        kel_reference: Arc<EventStorage<RedbDatabase>>,
-        tel_reference: Arc<TelEventStorage>,
+        kel_reference: Arc<EventStorage<K>>,
+        tel_reference: Arc<TelEventStorage<D>>,
         tel_publisher: Option<TelNotificationBus>,
     ) -> Self {
         Self {
@@ -50,13 +51,13 @@ impl TelEventProcessor {
     // Checks verifiable event and adds it to database.
     pub fn process(&self, event: VerifiableEvent) -> Result<(), Error> {
         let validator =
-            TelEventValidator::new(self.tel_reference.db.clone(), self.kel_reference.clone());
+            TelEventValidator::new(self.tel_reference.clone(), self.kel_reference.clone());
         match &event.event.clone() {
             Event::Management(ref man) => match validator.validate_management(man, &event.seal) {
                 Ok(_) => {
                     self.tel_reference
                         .db
-                        .add_new_management_event(event.clone(), &man.data.prefix)
+                        .add_new_event(event.clone(), &man.data.prefix)
                         .unwrap();
                     self.publisher
                         .notify(&TelNotification::TelEventAdded(event))?;
@@ -79,30 +80,32 @@ impl TelEventProcessor {
                     e => Err(e),
                 },
             },
-            Event::Vc(ref vc_ev) => match validator.validate_vc(vc_ev, &event.seal) {
-                Ok(_) => {
-                    self.tel_reference
-                        .db
-                        .add_new_event(event.clone(), &vc_ev.data.data.prefix)
-                        .unwrap();
-                    self.publisher
-                        .notify(&TelNotification::TelEventAdded(event))
+            Event::Vc(ref vc_ev) => {
+                match validator.validate_vc(vc_ev, &event.seal) {
+                    Ok(_) => {
+                        self.tel_reference
+                            .db
+                            .add_new_event(event.clone(), &vc_ev.data.data.prefix)
+                            .unwrap();
+                        self.publisher
+                            .notify(&TelNotification::TelEventAdded(event))
+                    }
+                    Err(Error::MissingIssuerEventError) => self
+                        .publisher
+                        .notify(&TelNotification::MissingIssuer(event)),
+                    Err(Error::MissingRegistryError) => self
+                        .publisher
+                        .notify(&TelNotification::MissingRegistry(event)),
+                    Err(Error::OutOfOrderError) => {
+                        self.publisher.notify(&TelNotification::OutOfOrder(event))
+                    }
+                    Err(Error::EventAlreadySavedError) => {
+                        // Means that vc of given id is already accepted
+                        Ok(())
+                    }
+                    Err(e) => Err(e),
                 }
-                Err(Error::MissingIssuerEventError) => self
-                    .publisher
-                    .notify(&TelNotification::MissingIssuer(event)),
-                Err(Error::MissingRegistryError) => self
-                    .publisher
-                    .notify(&TelNotification::MissingRegistry(event)),
-                Err(Error::OutOfOrderError) => {
-                    self.publisher.notify(&TelNotification::OutOfOrder(event))
-                }
-                Err(Error::EventAlreadySavedError) => {
-                    // Means that vc of given id is already accepted
-                    Ok(())
-                }
-                Err(e) => Err(e),
-            },
+            }
         }
     }
 

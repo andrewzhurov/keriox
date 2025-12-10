@@ -6,10 +6,7 @@ use super::compute_state;
 use crate::query::{key_state_notice::KeyStateNotice, reply_event::SignedReply};
 use crate::{
     actor::prelude::Message,
-    database::{
-        redb::{rkyv_adapter::said_wrapper::SaidValue, RedbDatabase},
-        timestamped::{Timestamped, TimestampedSignedEventMessage},
-    },
+    database::timestamped::{Timestamped, TimestampedSignedEventMessage},
     error::Error,
     event::{
         event_data::EventData,
@@ -20,10 +17,14 @@ use crate::{
         signed_event_message::{Notice, SignedNontransferableReceipt},
     },
     prefix::{BasicPrefix, IdentifierPrefix},
+    redb::rkyv_adapter::said_wrapper::SaidValue,
     state::{EventSemantics, IdentifierState},
 };
 #[cfg(feature = "mailbox")]
-use crate::{database::mailbox::MailboxData, query::mailbox::QueryArgsMbx};
+use crate::{
+    database::{mailbox::MailboxData, redb::RedbDatabase},
+    query::mailbox::QueryArgsMbx,
+};
 use crate::{
     database::{EventDatabase, QueryParameters},
     event_message::signed_event_message::SignedEventMessage,
@@ -43,16 +44,24 @@ pub struct EventStorage<D: EventDatabase> {
     pub mailbox_data: MailboxData,
 }
 
-// Collection of methods for getting data from database.
-impl EventStorage<RedbDatabase> {
-    pub fn new(events_db: Arc<RedbDatabase>) -> Self {
+impl<D: EventDatabase + std::any::Any> EventStorage<D> {
+    pub fn new(events_db: Arc<D>) -> Self {
         #[cfg(feature = "mailbox")]
-        let mailbox_data = MailboxData::new(events_db.db.clone()).unwrap();
-        Self {
-            events_db,
-            #[cfg(feature = "mailbox")]
-            mailbox_data: mailbox_data,
+        {
+            if let Some(redb_db) =
+                (events_db.as_ref() as &dyn std::any::Any).downcast_ref::<RedbDatabase>()
+            {
+                let mailbox_data = MailboxData::new(redb_db.db.clone()).unwrap();
+                Self {
+                    events_db,
+                    mailbox_data,
+                }
+            } else {
+                panic!("Expected RedbDatabase for mailbox feature");
+            }
         }
+        #[cfg(not(feature = "mailbox"))]
+        Self { events_db }
     }
 }
 

@@ -1,10 +1,9 @@
 use std::sync::{Arc, RwLock};
 
 use crate::{
+    database::TelEventDatabase,
     error::Error,
-    event::manager_event::Config,
-    event::verifiable_event::VerifiableEvent,
-    event::Event,
+    event::{manager_event::Config, verifiable_event::VerifiableEvent, Event},
     processor::{
         notification::{TelNotification, TelNotificationBus, TelNotificationKind, TelNotifier},
         storage::TelEventStorage,
@@ -13,7 +12,7 @@ use crate::{
     state::{vc_state::TelState, ManagerTelState},
 };
 use keri_core::{
-    database::redb::RedbDatabase, prefix::IdentifierPrefix, processor::event_storage::EventStorage,
+    database::{redb::RedbDatabase, EventDatabase}, prefix::IdentifierPrefix, processor::event_storage::EventStorage,
 };
 use said::SelfAddressingIdentifier;
 
@@ -44,15 +43,15 @@ impl TelNotifier for RecentlyAddedEvents {
 }
 
 /// Transaction Event Log
-pub struct Tel {
-    pub processor: TelEventProcessor,
+pub struct Tel<D: TelEventDatabase, K: EventDatabase> {
+    pub processor: TelEventProcessor<D, K>,
     pub recently_added_events: Arc<RecentlyAddedEvents>,
 }
 
-impl Tel {
+impl<D: TelEventDatabase, K: EventDatabase> Tel<D, K> {
     pub fn new(
-        tel_reference: Arc<TelEventStorage>,
-        kel_reference: Arc<EventStorage<RedbDatabase>>,
+        tel_reference: Arc<TelEventStorage<D>>,
+        kel_reference: Arc<EventStorage<K>>,
         publisher: Option<TelNotificationBus>,
     ) -> Self {
         let added_events = Arc::new(RecentlyAddedEvents::new());
@@ -175,15 +174,18 @@ impl Tel {
             .collect::<Vec<_>>())
     }
 
-    pub fn get_management_tel(
-        &self,
-        registry_id: &IdentifierPrefix,
-    ) -> Result<Option<impl DoubleEndedIterator + Iterator<Item = VerifiableEvent>>, Error> {
+    pub fn get_management_tel<'a>(
+        &'a self,
+        registry_id: &'a IdentifierPrefix,
+    ) -> Result<Option<Box<dyn DoubleEndedIterator<Item = VerifiableEvent> + 'a>>, Error> {
         Ok(self
             .processor
             .tel_reference
             .db
-            .get_management_events(&registry_id))
+            .get_management_events(registry_id)
+            .map(|iter| {
+                Box::new(iter) as Box<dyn DoubleEndedIterator<Item = VerifiableEvent> + 'a>
+            }))
     }
 
     pub fn get_management_tel_state(

@@ -12,6 +12,7 @@ use keri_core::{
         error::ActorError, parse_event_stream, parse_notice_stream, parse_query_stream,
         parse_reply_stream, possible_response::PossibleResponse,
     },
+    database::redb::RedbDatabase,
     error::Error,
     event_message::signed_event_message::Message,
     oobi::{error::OobiError, EndRole, LocationScheme},
@@ -19,7 +20,7 @@ use keri_core::{
     query::reply_event::{ReplyRoute, SignedReply},
 };
 use tel_providing::RegistryMapping;
-use teliox::event::parse_tel_query_stream;
+use teliox::{database::redb::RedbTelDatabase, event::parse_tel_query_stream};
 use teliox::{
     event::verifiable_event::VerifiableEvent,
     processor::{validator::TelEventValidator, TelReplyType},
@@ -148,7 +149,7 @@ impl Watcher {
                             teliox::event::Event::Vc(_) => todo!(),
                         };
                         let seal = &ev.seal;
-                        TelEventValidator::check_kel_event(
+                        TelEventValidator::<RedbTelDatabase, RedbDatabase>::check_kel_event(
                             self.watcher_data.event_storage.clone(),
                             seal,
                             &issuer_id,

@@ -1,68 +1,53 @@
 use crate::{error::Error, event::verifiable_event::VerifiableEvent};
-use keri_core::prefix::IdentifierPrefix;
-use sled_tables::{
-    self,
-    tables::{SledEventTree, SledEventTreeVec},
+use ::redb::Database;
+use keri_core::{database::redb::WriteTxnMode, prefix::IdentifierPrefix};
+use said::SelfAddressingIdentifier;
+use std::{
+    fs::{create_dir_all, exists},
+    path::Path,
+    sync::Arc,
 };
-use std::{path::Path, sync::Arc};
-pub mod escrow;
+pub(crate) mod digest_key_database;
+pub mod redb;
 
-pub struct EventDatabase {
-    db: Arc<sled::Db>,
-    // "iids" tree
-    identifiers: SledEventTree<IdentifierPrefix>,
-    // "tels" tree
-    tel_events: SledEventTreeVec<VerifiableEvent>,
-    // "man" tree
-    management_events: SledEventTreeVec<VerifiableEvent>,
+pub trait TelEventDatabase {
+    fn new(path: impl AsRef<Path>) -> Result<Self, Error>
+    where
+        Self: Sized;
+
+    fn add_new_event(&self, event: VerifiableEvent, id: &IdentifierPrefix) -> Result<(), Error>;
+
+    fn get_events(
+        &self,
+        id: &IdentifierPrefix,
+    ) -> Option<impl DoubleEndedIterator<Item = VerifiableEvent>>;
+
+    fn get_management_events(
+        &self,
+        id: &IdentifierPrefix,
+    ) -> Option<impl DoubleEndedIterator<Item = VerifiableEvent>>;
 }
 
-impl EventDatabase {
-    pub fn new(path: impl AsRef<Path>) -> Result<Self, Error> {
-        let db = Arc::new(sled::open(path)?);
-        Ok(Self {
-            db: db.clone(),
-            identifiers: SledEventTree::new(db.open_tree(b"iids")?),
-            tel_events: SledEventTreeVec::new(db.open_tree(b"tels")?),
-            management_events: SledEventTreeVec::new(db.open_tree(b"mans")?),
-        })
-    }
+pub trait TelLogDatabase {
+    fn log_event(&self, event: &VerifiableEvent, transaction: &WriteTxnMode) -> Result<(), Error>;
+    fn get(&self, digest: &SelfAddressingIdentifier) -> Result<Option<VerifiableEvent>, Error>;
+}
 
-    pub fn add_new_event(
-        &self,
-        event: VerifiableEvent,
-        id: &IdentifierPrefix,
-    ) -> Result<(), Error> {
-        self.tel_events
-            .push(self.identifiers.designated_key(id), event)?;
-        self.db.flush()?;
-        Ok(())
-    }
+pub struct EscrowDatabase(pub(crate) Arc<Database>);
 
-    pub fn get_events(
-        &self,
-        id: &IdentifierPrefix,
-    ) -> Option<impl DoubleEndedIterator<Item = VerifiableEvent>> {
-        self.tel_events
-            .iter_values(self.identifiers.designated_key(id))
-    }
-
-    pub fn add_new_management_event(
-        &self,
-        event: VerifiableEvent,
-        id: &IdentifierPrefix,
-    ) -> Result<(), Error> {
-        self.management_events
-            .push(self.identifiers.designated_key(id), event)?;
-        self.db.flush()?;
-        Ok(())
-    }
-
-    pub fn get_management_events(
-        &self,
-        id: &IdentifierPrefix,
-    ) -> Option<impl DoubleEndedIterator<Item = VerifiableEvent>> {
-        self.management_events
-            .iter_values(self.identifiers.designated_key(id))
+impl EscrowDatabase {
+    pub fn new(file_path: &Path) -> Result<Self, Error> {
+        // Create file if not exists
+        if !std::fs::exists(file_path).map_err(|e| Error::EscrowDatabaseError(e.to_string()))? {
+            if let Some(parent) = file_path.parent() {
+                if !exists(parent).map_err(|e| Error::EscrowDatabaseError(e.to_string()))? {
+                    create_dir_all(parent)
+                        .map_err(|e| Error::EscrowDatabaseError(e.to_string()))?;
+                }
+            }
+        }
+        let db =
+            Database::create(file_path).map_err(|e| Error::EscrowDatabaseError(e.to_string()))?;
+        Ok(Self(Arc::new(db)))
     }
 }

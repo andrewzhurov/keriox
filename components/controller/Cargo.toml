@@ -1,6 +1,6 @@
 [package]
 name = "keri-controller"
-version = "0.17.2"
+version = "0.17.9"
 description = "KERI Identifier Management Library"
 authors.workspace = true
 edition.workspace = true
@@ -16,8 +16,8 @@ query_cache = ["rusqlite"]
 bevy_derive = { version = "0.17.2" }
 async-std = { version = "1.12.0", features = ["attributes", "tokio1"] }
 futures = "0.3.24"
-keri-core = { path = "../../keriox_core", version = "0.17.2", features = ["oobi", "mailbox"] }
-teliox = {path = "../../support/teliox", version = "0.17.2" }
+keri-core = { path = "../../keriox_core", version = "0.17.9", features = ["oobi-manager", "mailbox"] }
+teliox = {path = "../../support/teliox", version = "0.17.9" }
 thiserror = "1.0"
 serde_json = "1.0"
 url = "2.3.1"
@@ -25,6 +25,8 @@ cesrox = { version = "0.1.4" }
 itertools.workspace = true
 rusqlite = { version = "0.32.1", features = ["bundled"], optional = true}
 serde = "1.0.219"
+reqwest = "0.12.22"
+async-trait = "0.1.57"
 
 [dev-dependencies]
 witness = { path = "../witness" }
