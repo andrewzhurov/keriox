@@ -6,7 +6,17 @@ use said::{
 use rkyv::{Archive, Deserialize, Serialize};
 
 #[derive(
-    Debug, Clone, Default, Eq, Hash, Archive, rkyv::Serialize, rkyv::Deserialize, PartialEq,
+    Debug,
+    Clone,
+    Default,
+    PartialOrd,
+    Ord,
+    Eq,
+    Hash,
+    Archive,
+    rkyv::Serialize,
+    rkyv::Deserialize,
+    PartialEq,
 )]
 #[rkyv(derive(Debug))]
 pub struct SaidValue {

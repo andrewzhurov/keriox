@@ -21,7 +21,17 @@ impl From<ed25519_dalek::SignatureError> for KeysError {
 }
 
 #[derive(
-    Debug, Clone, PartialEq, Hash, Eq, Default, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
+    Debug,
+    Clone,
+    PartialOrd,
+    Ord,
+    PartialEq,
+    Hash,
+    Eq,
+    Default,
+    rkyv::Archive,
+    rkyv::Serialize,
+    rkyv::Deserialize,
 )]
 #[rkyv(compare(PartialEq), derive(Debug))]
 pub struct PublicKey {
@@ -78,7 +88,7 @@ impl PublicKey {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 pub struct PrivateKey {
     key: Vec<u8>,
 }

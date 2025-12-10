@@ -23,7 +23,18 @@ pub use basic::BasicPrefix;
 pub use seed::SeedPrefix;
 pub use self_signing::SelfSigningPrefix;
 
-#[derive(Debug, PartialEq, Clone, Eq, Hash, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[derive(
+    Debug,
+    PartialOrd,
+    Ord,
+    PartialEq,
+    Clone,
+    Eq,
+    Hash,
+    rkyv::Archive,
+    rkyv::Serialize,
+    rkyv::Deserialize,
+)]
 #[rkyv(derive(Debug))]
 pub enum IdentifierPrefix {
     Basic(BasicPrefix),

@@ -13,6 +13,7 @@ pub trait KeyManager {
     fn rotate(&mut self) -> Result<(), Error>;
 }
 
+#[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 pub struct CryptoBox {
     pub pub_key_log: Vec<PublicKey>,
     signer: Signer,
@@ -62,6 +63,7 @@ impl CryptoBox {
     }
 }
 
+#[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 pub struct Signer {
     priv_key: PrivateKey,
     pub_key: PublicKey,
