@@ -107,6 +107,12 @@ pub struct EventSeal {
     pub event_digest: SaidValue,
 }
 
+impl From<EventSeal> for IdentifierPrefix {
+    fn from(value: EventSeal) -> Self {
+        value.prefix
+    }
+}
+
 impl EventSeal {
     pub fn new(
         identifier: IdentifierPrefix,
