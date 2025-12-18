@@ -21,6 +21,8 @@ edition = "2021"
 license = "EUPL-1.2"
 
 [workspace.dependencies]
+cesrox = { path = "../cesrox/cesr", version = "0.1.4" }
+said = { path = "../cesrox/said", version = "0.4.0" }
 itertools = "0.11.0"
 # fraction = "0.16.0"
 fraction = { git = "https://github.com/dnsl48/fraction", rev = "17649f7ff9f0509cfd52fe1ecaa4d97b1cddf851" }
